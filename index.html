@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coche Compartido</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 20px;
+            max-width: 500px;
+            margin: auto;
+            background: #f4f4f9;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #1e293b;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            margin-top: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input {
+            width: auto;
+        }
+
+        #resultado {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <h2>Registrar Viaje</h2>
+        <form id="viajeForm">
+            <label for="fecha">Fecha:</label>
+            <input type="date" id="fecha" required>
+
+            <label for="conductor">Conductor (C):</label>
+            <input type="text" id="conductor" placeholder="ID o Nombre del conductor" required>
+
+            <label>Pasajeros del Sistema (P):</label>
+            <div class="checkbox-group" id="pasajerosContainer">
+                <input type="text" id="pasajeros" placeholder="IDs separados por coma (ej: p1, p2)" required>
+            </div>
+
+            <button type="submit">Guardar Viaje</button>
+        </form>
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        document.getElementById('fecha').valueAsDate = new Date();
+
+        document.getElementById('viajeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fecha = document.getElementById('fecha').value;
+            const conductor_id = document.getElementById('conductor').value.trim();
+            const pasajeros_raw = document.getElementById('pasajeros').value;
+            const pasajeros_ids = pasajeros_raw.split(',').map(p => p.trim()).filter(p => p.length > 0);
+
+            const payload = { fecha, conductor_id, pasajeros_ids };
+
+            try {
+                const res = await fetch('https://carlogic-api.onrender.com/api/v1/viajes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                const resDiv = document.getElementById('resultado');
+                if (res.ok) {
+                    resDiv.className = 'success';
+                    resDiv.style.display = 'block';
+                    resDiv.innerHTML = `<strong>¡Viaje registrado!</strong><br>Balance suma cero: ${data.balance_viaje_suma_cero}`;
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            } catch (err) {
+                alert('Error al conectar con la API');
+            }
+        });
+    </script>
+</body>
+
+</html>
