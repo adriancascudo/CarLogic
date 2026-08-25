@@ -55,6 +55,82 @@ def calcular_puntos_viaje(num_pasajeros: int) -> tuple[int, int]:
         return puntos_conductor, puntos_pasajero
     raise ValueError("El viaje debe incluir al menos a 1 pasajero del sistema.")
 
+class UsuarioCreateRequest(BaseModel):
+    nombre: str
+    conduce_habitualmente: bool = True
+
+
+@app.get("/api/v1/usuarios")
+def listar_usuarios():
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, nombre, conduce_habitualmente FROM usuarios ORDER BY nombre ASC;"
+            )
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
+@app.post("/api/v1/usuarios")
+def crear_usuario(payload: UsuarioCreateRequest):
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO usuarios (nombre, conduce_habitualmente) VALUES (%s, %s) RETURNING id;",
+                (payload.nombre, payload.conduce_habitualmente),
+            )
+            conn.commit()
+            return {"status": "success", "id": cur.fetchone()["id"]}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/v1/usuarios/{usuario_id}")
+def eliminar_usuario(usuario_id: str):
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM usuarios WHERE id = %s;", (usuario_id,))
+            conn.commit()
+            return {"status": "success"}
+    finally:
+        conn.close()
+
+
+@app.get("/api/v1/viajes-historial")
+def listar_historial():
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            query = """
+                SELECT 
+                    v.id,
+                    v.fecha,
+                    u.nombre AS conductor_nombre,
+                    ARRAY_REMOVE(ARRAY_AGG(up.nombre), NULL) AS pasajeros
+                FROM viajes v
+                JOIN usuarios u ON v.conductor_id = u.id
+                LEFT JOIN viaje_pasajeros vp ON vp.viaje_id = v.id
+                LEFT JOIN usuarios up ON vp.usuario_id = up.id
+                GROUP BY v.id, v.fecha, u.nombre
+                ORDER BY v.fecha DESC, v.creado_en DESC;
+            """
+            cur.execute(query)
+            viajes = cur.fetchall()
+            for v in viajes:
+                num_p = len(v["pasajeros"])
+                p_cond, p_pas = (
+                    calcular_puntos_viaje(num_p) if num_p > 0 else (0, 0)
+                )
+                v["puntos_conductor"] = p_cond
+                v["puntos_pasajero"] = p_pas
+            return viajes
+    finally:
+        conn.close()
+
 
 @app.get("/")
 def estado_api():

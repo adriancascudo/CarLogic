@@ -10,10 +10,40 @@
         body {
             font-family: system-ui, -apple-system, sans-serif;
             padding: 16px;
-            max-width: 480px;
+            max-width: 500px;
             margin: auto;
             background: #f8fafc;
             color: #0f172a;
+        }
+
+        nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        nav button {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            background: #e2e8f0;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        nav button.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .card {
@@ -33,7 +63,7 @@
 
         label {
             display: block;
-            margin: 12px 0 6px;
+            margin: 10px 0 4px;
             font-weight: 600;
             font-size: 14px;
         }
@@ -42,14 +72,14 @@
         select,
         button {
             width: 100%;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 10px;
+            border-radius: 8px;
             border: 1px solid #cbd5e1;
             box-sizing: border-box;
             font-size: 15px;
         }
 
-        .btn-sugerir {
+        .btn-main {
             background: #0284c7;
             color: white;
             border: none;
@@ -58,12 +88,53 @@
             cursor: pointer;
         }
 
-        .btn-guardar {
+        .btn-success {
             background: #16a34a;
             color: white;
             border: none;
             font-weight: bold;
             margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            width: auto;
+            font-size: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+        }
+
+        .checkbox-item input {
+            width: auto;
+        }
+
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        details {
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #fafafa;
+        }
+
+        summary {
+            font-weight: bold;
             cursor: pointer;
         }
 
@@ -74,62 +145,157 @@
             border-radius: 10px;
             margin-top: 12px;
         }
-
-        .sugerencia-destacado {
-            font-size: 18px;
-            font-weight: bold;
-            color: #0369a1;
-        }
-
-        .ranking-item {
-            font-size: 13px;
-            margin-top: 4px;
-            color: #334155;
-        }
     </style>
 </head>
 
 <body>
 
-    <div class="card">
-        <h2>🚗 Planificar Viaje Diario</h2>
+    <nav>
+        <button id="tabPlanBtn" class="active" onclick="switchTab('tabPlan')">Planificar</button>
+        <button id="tabConfigBtn" onclick="switchTab('tabConfig')">Configuración</button>
+    </nav>
 
-        <label for="fecha">Fecha del trayecto:</label>
-        <input type="date" id="fecha">
+    <!-- PANTALLA 1: PLANIFICACIÓN Y REGISTRO DIARIO -->
+    <div id="tabPlan" class="tab-content active">
+        <div class="card">
+            <h2>🚗 Planificar Viaje Diario</h2>
+            <label for="fecha">Fecha:</label>
+            <input type="date" id="fecha">
 
-        <label for="participantes">Participantes de hoy (UUIDs/IDs separados por coma):</label>
-        <input type="text" id="participantes" placeholder="ej: id_pablo, id_carlos, id_celia">
+            <label>Selecciona quiénes viajan hoy:</label>
+            <div id="listaCheckboxesParticipantes">Cargando usuarios...</div>
 
-        <button type="button" class="btn-sugerir" onclick="consultarConductor()">1. ¿Quién conduce hoy?</button>
+            <button type="button" class="btn-main" onclick="consultarConductor()">1. ¿Quién conduce hoy?</button>
 
-        <div id="boxSugerencia" style="display:none;" class="sugerencia-box">
-            <div>Conductor sugerido por el sistema:</div>
-            <div id="nombreConductor" class="sugerencia-destacado"></div>
-            <div id="detalleRanking" style="margin-top: 8px;"></div>
+            <div id="boxSugerencia" style="display:none;" class="sugerencia-box">
+                <div>Conductor sugerido:</div>
+                <div id="nombreConductor" style="font-size:18px; font-weight:bold; color:#0369a1;"></div>
+                <div id="detalleRanking" style="margin-top: 8px; font-size:13px;"></div>
+            </div>
+        </div>
+
+        <div class="card" id="cardRegistro" style="display:none;">
+            <h3>Confirmar y Registrar</h3>
+            <label for="selectConductor">Conductor (C):</label>
+            <select id="selectConductor"></select>
+
+            <button type="button" class="btn-success" onclick="registrarViaje()">2. Guardar Viaje</button>
         </div>
     </div>
 
-    <div class="card" id="cardRegistro" style="display:none;">
-        <h3> Confirmar y Registrar</h3>
-        <label for="conductorSeleccionado">Conductor (C):</label>
-        <input type="text" id="conductorSeleccionado">
+    <!-- PANTALLA 2: CONFIGURACIÓN, GESTIÓN Y HISTORIAL -->
+    <div id="tabConfig" class="tab-content">
+        <div class="card">
+            <h2>👤 Crear Participante</h2>
+            <form id="formUsuario">
+                <label for="nuevoNombre">Nombre del usuario:</label>
+                <input type="text" id="nuevoNombre" required placeholder="Ej: Carlos">
 
-        <label for="pasajerosSistema">Pasajeros del sistema (P):</label>
-        <input type="text" id="pasajerosSistema">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="conduceHabitualmente" checked>
+                    <label for="conduceHabitualmente" style="margin:0;">¿Dispone de coche / Conduce?</label>
+                </div>
+                <button type="submit" class="btn-main">Agregar Usuario</button>
+            </form>
+        </div>
 
-        <button type="button" class="btn-guardar" onclick="registrarViaje()">2. Guardar Viaje</button>
+        <div class="card">
+            <h2>📋 Participantes Registrados</h2>
+            <div id="listaUsuariosCrud">Cargando participantes...</div>
+        </div>
+
+        <div class="card">
+            <h2>📜 Histórico de Viajes</h2>
+            <div id="listaHistóricoViajes">Cargando historial...</div>
+        </div>
     </div>
 
     <script>
         const API_URL = 'https://carlogic-api.onrender.com/api/v1';
+        let usuariosCache = [];
+
         document.getElementById('fecha').valueAsDate = new Date();
 
-        async function consultarConductor() {
-            const raw = document.getElementById('participantes').value;
-            const ids = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if (tabId === 'tabPlan') document.getElementById('tabPlanBtn').classList.add('active');
+            if (tabId === 'tabConfig') document.getElementById('tabConfigBtn').classList.add('active');
+        }
 
-            if (ids.length === 0) {
-                alert('Introduce al menos un participante');
+        async function cargarUsuarios() {
+            try {
+                const res = await fetch(`${API_URL}/usuarios`);
+                usuariosCache = await res.json();
+                renderizarPantallas();
+            } catch (err) {
+                console.error("Error al cargar usuarios:", err);
+            }
+        }
+
+        function renderizarPantallas() {
+            // Render checkboxes en planificación
+            const containerChecks = document.getElementById('listaCheckboxesParticipantes');
+            if (usuariosCache.length === 0) {
+                containerChecks.innerHTML = '<p style="color:#64748b; font-size:13px;">No hay usuarios. Ve a Configuración para registrar nuevos participantes.</p>';
+            } else {
+                containerChecks.innerHTML = usuariosCache.map(u => `
+                    <div class="checkbox-item">
+                        <input type="checkbox" value="${u.id}" id="chk_${u.id}">
+                        <label for="chk_${u.id}" style="margin:0;">${u.nombre} ${u.conduce_habitualmente ? '' : '(No conduce)'}</label>
+                    </div>
+                `).join('');
+            }
+
+            // Render lista CRUD en configuración
+            const containerCrud = document.getElementById('listaUsuariosCrud');
+            containerCrud.innerHTML = usuariosCache.map(u => `
+                <div class="user-item">
+                    <div>
+                        <strong>${u.nombre}</strong> 
+                        <span style="font-size:12px; color:#64748b;">(${u.conduce_habitualmente ? 'Conductor' : 'Pasajero fijo'})</span>
+                    </div>
+                    <button class="btn-danger" onclick="eliminarUsuario('${u.id}')">Eliminar</button>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('formUsuario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('nuevoNombre').value.trim();
+            const conduce_habitualmente = document.getElementById('conduceHabitualmente').checked;
+
+            try {
+                const res = await fetch(`${API_URL}/usuarios`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, conduce_habitualmente })
+                });
+                if (res.ok) {
+                    document.getElementById('nuevoNombre').value = '';
+                    await cargarUsuarios();
+                    alert('Usuario registrado con éxito.');
+                }
+            } catch (err) {
+                alert('Error al crear usuario.');
+            }
+        });
+
+        async function eliminarUsuario(id) {
+            if (!confirm('¿Seguro que deseas eliminar este participante?')) return;
+            try {
+                const res = await fetch(`${API_URL}/usuarios/${id}`, { method: 'DELETE' });
+                if (res.ok) await cargarUsuarios();
+            } catch (err) {
+                alert('Error al eliminar usuario.');
+            }
+        }
+
+        async function consultarConductor() {
+            const seleccionados = Array.from(document.querySelectorAll('#listaCheckboxesParticipantes input:checked')).map(cb => cb.value);
+            if (seleccionados.length === 0) {
+                alert('Selecciona al menos una persona que viaje hoy.');
                 return;
             }
 
@@ -137,7 +303,7 @@
                 const res = await fetch(`${API_URL}/sugerir-conductor`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ participantes_ids: ids })
+                    body: JSON.stringify({ participantes_ids: seleccionados })
                 });
 
                 const data = await res.json();
@@ -148,14 +314,18 @@
 
                 let rankHtml = '<strong>Saldos comparados:</strong><br>';
                 data.ranking_candidatos.forEach(c => {
-                    rankHtml += `<div class="ranking-item">• ${c.nombre}: ${c.saldo} pts (${c.total_conducciones} conducciones)</div>`;
+                    rankHtml += `<div>• ${c.nombre}: ${c.saldo} pts (${c.total_conducciones} conducciones)</div>`;
                 });
                 document.getElementById('detalleRanking').innerHTML = rankHtml;
                 document.getElementById('boxSugerencia').style.display = 'block';
 
-                // Pre-rellenar formulario de registro
-                document.getElementById('conductorSeleccionado').value = sug.id;
-                document.getElementById('pasajerosSistema').value = ids.filter(id => id !== sug.id).join(', ');
+                // Llenar selector de confirmación
+                const selectCond = document.getElementById('selectConductor');
+                selectCond.innerHTML = seleccionados.map(id => {
+                    const u = usuariosCache.find(user => user.id === id);
+                    return `<option value="${u.id}" ${u.id === sug.id ? 'selected' : ''}>${u.nombre}</option>`;
+                }).join('');
+
                 document.getElementById('cardRegistro').style.display = 'block';
 
             } catch (err) {
@@ -165,9 +335,9 @@
 
         async function registrarViaje() {
             const fecha = document.getElementById('fecha').value;
-            const conductor_id = document.getElementById('conductorSeleccionado').value.trim();
-            const pasajeros_raw = document.getElementById('pasajerosSistema').value;
-            const pasajeros_sistema_ids = pasajeros_raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            const conductor_id = document.getElementById('selectConductor').value;
+            const seleccionados = Array.from(document.querySelectorAll('#listaCheckboxesParticipantes input:checked')).map(cb => cb.value);
+            const pasajeros_sistema_ids = seleccionados.filter(id => id !== conductor_id);
 
             try {
                 const res = await fetch(`${API_URL}/viajes`, {
@@ -179,12 +349,43 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail);
 
-                alert(`¡Viaje registrado correctamente! Puntos repartidos (Suma cero: ${data.balance_suma_cero})`);
-                location.reload();
+                alert(`¡Viaje guardado! Balance suma cero: ${data.balance_suma_cero}`);
+                document.getElementById('cardRegistro').style.display = 'none';
+                document.getElementById('boxSugerencia').style.display = 'none';
+                await cargarHistorial();
             } catch (err) {
-                alert('Error al guardar: ' + err.message);
+                alert('Error al registrar viaje: ' + err.message);
             }
         }
+
+        async function cargarHistorial() {
+            try {
+                const res = await fetch(`${API_URL}/viajes-historial`);
+                const viajes = await res.json();
+                const container = document.getElementById('listaHistóricoViajes');
+
+                if (viajes.length === 0) {
+                    container.innerHTML = '<p style="color:#64748b; font-size:13px;">No hay viajes registrados aún.</p>';
+                    return;
+                }
+
+                container.innerHTML = viajes.map(v => `
+                    <details>
+                        <summary>${v.fecha} - Conductor: ${v.conductor_nombre}</summary>
+                        <div style="margin-top:8px; font-size:13px; color:#334155;">
+                            <strong>Pasajeros del sistema:</strong> ${v.pasajeros.join(', ') || 'Ninguno'}<br>
+                            <strong>Puntos otorgados:</strong> Conductor (+${v.puntos_conductor}), Pasajeros (${v.puntos_pasajero} c/u)
+                        </div>
+                    </details>
+                `).join('');
+            } catch (err) {
+                console.error("Error al cargar historial:", err);
+            }
+        }
+
+        // Carga inicial
+        cargarUsuarios();
+        cargarHistorial();
     </script>
 </body>
 
