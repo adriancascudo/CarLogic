@@ -104,6 +104,19 @@
             padding: 6px 12px;
             width: auto;
             font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            width: auto;
+            font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
         }
 
         .checkbox-item {
@@ -118,10 +131,7 @@
         }
 
         .user-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #f1f5f9;
         }
 
@@ -155,8 +165,14 @@
         <button id="tabConfigBtn" onclick="switchTab('tabConfig')">Configuración</button>
     </nav>
 
-    <!-- PANTALLA 1: PLANIFICACIÓN Y REGISTRO DIARIO -->
+    <!-- PANTALLA 1: PLANIFICACIÓN Y ESTADO -->
     <div id="tabPlan" class="tab-content active">
+
+        <div class="card">
+            <h2>📊 Estado de Puntos</h2>
+            <div id="listaSaldos">Cargando saldos...</div>
+        </div>
+
         <div class="card">
             <h2>🚗 Planificar Viaje Diario</h2>
             <label for="fecha">Fecha:</label>
@@ -183,7 +199,7 @@
         </div>
     </div>
 
-    <!-- PANTALLA 2: CONFIGURACIÓN, GESTIÓN Y HISTORIAL -->
+    <!-- PANTALLA 2: CONFIGURACIÓN Y GESTIÓN -->
     <div id="tabConfig" class="tab-content">
         <div class="card">
             <h2>👤 Crear Participante</h2>
@@ -224,6 +240,33 @@
             if (tabId === 'tabConfig') document.getElementById('tabConfigBtn').classList.add('active');
         }
 
+        async function cargarSaldos() {
+            try {
+                const res = await fetch(`${API_URL}/saldos`);
+                const saldos = await res.json();
+                const container = document.getElementById('listaSaldos');
+
+                if (saldos.length === 0) {
+                    container.innerHTML = '<p style="color:#64748b; font-size:13px;">No hay datos de viajes aún.</p>';
+                    return;
+                }
+
+                container.innerHTML = saldos.map(s => `
+                    <div style="display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+                        <div>
+                            <strong>${s.nombre}</strong> 
+                            ${!s.conduce_habitualmente ? '<span style="font-size:12px; color:#ef4444; margin-left:6px;">(Sin coche)</span>' : ''}
+                        </div>
+                        <div style="font-weight:bold; color: ${s.saldo < 0 ? '#dc2626' : (s.saldo > 0 ? '#16a34a' : '#475569')}">
+                            ${s.saldo > 0 ? '+' : ''}${s.saldo} pts
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Error al cargar saldos:", err);
+            }
+        }
+
         async function cargarUsuarios() {
             try {
                 const res = await fetch(`${API_URL}/usuarios`);
@@ -235,30 +278,53 @@
         }
 
         function renderizarPantallas() {
-            // Render checkboxes en planificación
             const containerChecks = document.getElementById('listaCheckboxesParticipantes');
             if (usuariosCache.length === 0) {
-                containerChecks.innerHTML = '<p style="color:#64748b; font-size:13px;">No hay usuarios. Ve a Configuración para registrar nuevos participantes.</p>';
+                containerChecks.innerHTML = '<p style="color:#64748b; font-size:13px;">No hay usuarios. Ve a Configuración.</p>';
             } else {
                 containerChecks.innerHTML = usuariosCache.map(u => `
                     <div class="checkbox-item">
                         <input type="checkbox" value="${u.id}" id="chk_${u.id}">
-                        <label for="chk_${u.id}" style="margin:0;">${u.nombre} ${u.conduce_habitualmente ? '' : '(No conduce)'}</label>
+                        <label for="chk_${u.id}" style="margin:0;">
+                            ${u.nombre} ${u.conduce_habitualmente ? '' : '<span style="color:#ef4444; font-size:12px;">(Sin coche)</span>'}
+                        </label>
                     </div>
                 `).join('');
             }
 
-            // Render lista CRUD en configuración
             const containerCrud = document.getElementById('listaUsuariosCrud');
             containerCrud.innerHTML = usuariosCache.map(u => `
                 <div class="user-item">
-                    <div>
-                        <strong>${u.nombre}</strong> 
-                        <span style="font-size:12px; color:#64748b;">(${u.conduce_habitualmente ? 'Conductor' : 'Pasajero fijo'})</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong>${u.nombre}</strong>
+                        <div>
+                            <button class="btn-warning" onclick="toggleConductor('${u.id}', ${u.conduce_habitualmente})">
+                                ${u.conduce_habitualmente ? 'Quitar coche' : 'Poner coche'}
+                            </button>
+                            <button class="btn-danger" style="margin-left: 4px;" onclick="eliminarUsuario('${u.id}')">Eliminar</button>
+                        </div>
                     </div>
-                    <button class="btn-danger" onclick="eliminarUsuario('${u.id}')">Eliminar</button>
+                    <div style="font-size:12px; color:#64748b;">
+                        Estado actual: ${u.conduce_habitualmente ? 'Conductor activo' : 'Pasajero exclusivo'}
+                    </div>
                 </div>
             `).join('');
+        }
+
+        async function toggleConductor(id, estadoActual) {
+            try {
+                const res = await fetch(`${API_URL}/usuarios/${id}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conduce_habitualmente: !estadoActual })
+                });
+                if (res.ok) {
+                    await cargarUsuarios();
+                    await cargarSaldos();
+                }
+            } catch (err) {
+                alert('Error al cambiar el estado del usuario.');
+            }
         }
 
         document.getElementById('formUsuario').addEventListener('submit', async (e) => {
@@ -275,7 +341,7 @@
                 if (res.ok) {
                     document.getElementById('nuevoNombre').value = '';
                     await cargarUsuarios();
-                    alert('Usuario registrado con éxito.');
+                    await cargarSaldos();
                 }
             } catch (err) {
                 alert('Error al crear usuario.');
@@ -286,7 +352,10 @@
             if (!confirm('¿Seguro que deseas eliminar este participante?')) return;
             try {
                 const res = await fetch(`${API_URL}/usuarios/${id}`, { method: 'DELETE' });
-                if (res.ok) await cargarUsuarios();
+                if (res.ok) {
+                    await cargarUsuarios();
+                    await cargarSaldos();
+                }
             } catch (err) {
                 alert('Error al eliminar usuario.');
             }
@@ -319,7 +388,6 @@
                 document.getElementById('detalleRanking').innerHTML = rankHtml;
                 document.getElementById('boxSugerencia').style.display = 'block';
 
-                // Llenar selector de confirmación
                 const selectCond = document.getElementById('selectConductor');
                 selectCond.innerHTML = seleccionados.map(id => {
                     const u = usuariosCache.find(user => user.id === id);
@@ -352,7 +420,10 @@
                 alert(`¡Viaje guardado! Balance suma cero: ${data.balance_suma_cero}`);
                 document.getElementById('cardRegistro').style.display = 'none';
                 document.getElementById('boxSugerencia').style.display = 'none';
+
+                // Actualizar todas las vistas
                 await cargarHistorial();
+                await cargarSaldos();
             } catch (err) {
                 alert('Error al registrar viaje: ' + err.message);
             }
@@ -383,8 +454,8 @@
             }
         }
 
-        // Carga inicial
-        cargarUsuarios();
+        // Carga inicial secuencial
+        cargarUsuarios().then(() => cargarSaldos());
         cargarHistorial();
     </script>
 </body>

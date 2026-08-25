@@ -59,6 +59,88 @@ class UsuarioCreateRequest(BaseModel):
     nombre: str
     conduce_habitualmente: bool = True
 
+class UsuarioEstadoRequest(BaseModel):
+    conduce_habitualmente: bool
+
+
+@app.put("/api/v1/usuarios/{usuario_id}/estado")
+def actualizar_estado_usuario(usuario_id: str, payload: UsuarioEstadoRequest):
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE usuarios SET conduce_habitualmente = %s WHERE id = %s;",
+                (payload.conduce_habitualmente, usuario_id)
+            )
+            conn.commit()
+            return {"status": "success"}
+    finally:
+        conn.close()
+
+
+@app.get("/api/v1/saldos")
+def obtener_saldos():
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, nombre, conduce_habitualmente FROM usuarios;"
+            )
+            usuarios = cur.fetchall()
+
+            cur.execute("""
+                SELECT 
+                    v.conductor_id,
+                    ARRAY_REMOVE(ARRAY_AGG(vp.usuario_id), NULL) AS pasajeros
+                FROM viajes v
+                LEFT JOIN viaje_pasajeros vp ON v.id = vp.viaje_id
+                GROUP BY v.id, v.conductor_id;
+            """)
+            viajes = cur.fetchall()
+
+            saldos = {
+                u["id"]: {
+                    "nombre": u["nombre"],
+                    "saldo": 0.0,
+                    "conduce": u["conduce_habitualmente"]
+                }
+                for u in usuarios
+            }
+
+            for v in viajes:
+                conductor = v["conductor_id"]
+                pasajeros = v["pasajeros"]
+                num_pasajeros = len(pasajeros)
+                
+                if num_pasajeros == 0:
+                    continue
+                    
+                total_personas = num_pasajeros + 1
+                puntos_cond = (total_personas - 1) / total_personas
+                puntos_pas = -1 / total_personas
+
+                if conductor in saldos:
+                    saldos[conductor]["saldo"] += puntos_cond
+                
+                for p in pasajeros:
+                    if p in saldos:
+                        saldos[p]["saldo"] += puntos_pas
+
+            resultado = [
+                {
+                    "id": uid,
+                    "nombre": data["nombre"],
+                    "saldo": round(data["saldo"], 2),
+                    "conduce_habitualmente": data["conduce"]
+                }
+                for uid, data in saldos.items()
+            ]
+            
+            resultado.sort(key=lambda x: x["saldo"], reverse=True)
+            return resultado
+    finally:
+        conn.close()
+
 
 @app.get("/api/v1/usuarios")
 def listar_usuarios():
